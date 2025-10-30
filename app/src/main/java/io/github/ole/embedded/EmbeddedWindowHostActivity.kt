@@ -22,6 +22,7 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
     private var mRemoteDisplayView: SurfaceView? = null
     private var mLocalMirrorDisplay: SurfaceControl? = null
     private var mLocalMirrorControl: SurfaceControl? = null
+    private var mRemoteDisplayHolder: SurfaceHolder? = null
     private var mRemoteDisplayControl: SurfaceControl? = null
     private var mBuiltInService: IBuiltIn? = null
 
@@ -91,6 +92,7 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
     private val mRemoteDisplayViewHolder: SurfaceHolder.Callback = object : SurfaceHolder.Callback {
         override fun surfaceCreated(holder: SurfaceHolder) {
             mRemoteDisplayControl = mRemoteDisplayView!!.surfaceControl
+            mRemoteDisplayHolder = holder
             loadRemoteDisplay()
         }
 
@@ -102,6 +104,7 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
 
         override fun surfaceDestroyed(holder: SurfaceHolder) {
             unloadRemoteDisplay()
+            mRemoteDisplayHolder = null
             mRemoteDisplayControl = null
         }
     }
@@ -110,30 +113,29 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
         try {
             val result = mBuiltInService?.performAction(
                 BuiltInContracts.VirtualDisplay.ID,
-                BuiltInContracts.VirtualDisplay.ACTION_DETACH,
+                BuiltInContracts.VirtualDisplay.ACTION_REPARENT,
                 Bundle.EMPTY
             )
-            Log.w(TAG, "Result of detach surface $result")
+            Log.w(TAG, "Result of reset display surface $result")
         } catch (e: RemoteException) {
             Log.e(TAG, "Failed to detach embedded SurfaceControl", e)
         }
     }
 
     private fun loadRemoteDisplay() {
-        if (mRemoteDisplayControl == null) {
+        if (mRemoteDisplayControl == null || mRemoteDisplayHolder == null) {
             return
         }
         try {
             val options = Bundle().apply {
-                putParcelable(BuiltInContracts.VirtualDisplay.ARG_PARENT_SC, mRemoteDisplayControl)
-                putInt(BuiltInContracts.VirtualDisplay.ARG_DISPLAY_ID, 2)
+                putParcelable(BuiltInContracts.VirtualDisplay.ARG_PARENT_SC, mRemoteDisplayHolder!!.surface)
             }
             val result = mBuiltInService?.performAction(
                 BuiltInContracts.VirtualDisplay.ID,
-                BuiltInContracts.VirtualDisplay.ACTION_ATTACH,
+                BuiltInContracts.VirtualDisplay.ACTION_REPARENT,
                 options
             )
-            Log.w(TAG, "Result of attach surface $result")
+            Log.w(TAG, "Result of reparent display surface $result")
         } catch (e: RemoteException) {
             Log.e(TAG, "Failed to attach embedded SurfaceControl", e)
         }
