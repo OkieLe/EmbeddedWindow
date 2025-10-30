@@ -36,6 +36,7 @@ android {
 }
 
 dependencies {
+    compileOnly(files("$rootDir/libs/framework.jar"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)

@@ -1,0 +1,39 @@
+prebuilt_etc {
+    name: "privapp-whitelist-io.github.ole.embedded",
+    sub_dir: "permissions",
+    src: "io.github.ole.embedded.xml",
+    filename_from_src: true,
+}
+
+android_app {
+    name: "EmbeddedWindow",
+    srcs: [
+        "src/main/aidl/**/*.aidl",
+        "src/main/java/**/*.java",
+        "src/main/java/**/*.kt",
+    ],
+    aidl: {
+        local_include_dirs: [
+            "src/main/aidl",
+        ],
+    },
+    resource_dirs: ["src/main/res"],
+    manifest : "src/main/AndroidManifest.xml",
+    platform_apis: true,
+    privileged: true,
+    certificate: "platform",
+    optimize : {
+        enabled : false,
+    },
+    dex_preopt : {
+        enabled : false
+    },
+    static_libs : [
+        "androidx.core_core-ktx",
+        "androidx.appcompat_appcompat",
+        "com.google.android.material_material",
+    ],
+    required: [
+        "privapp-whitelist-io.github.ole.embedded",
+    ]
+}
