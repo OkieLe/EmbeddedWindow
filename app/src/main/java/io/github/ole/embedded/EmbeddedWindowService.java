@@ -7,9 +7,7 @@ import android.annotation.SuppressLint;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
@@ -17,13 +15,12 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.util.Log;
-import android.view.Choreographer;
 import android.view.Display;
 import android.view.Gravity;
-import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.SurfaceControlViewHost;
 import android.view.WindowManager;
+import android.view.WindowManagerGlobal;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.window.InputTransferToken;
@@ -110,35 +107,29 @@ public class EmbeddedWindowService extends Service {
         public void attachEmbeddedSurfaceControl(SurfaceControl parentSc, int displayId,
                                                  InputTransferToken inputTransferToken) {
             mHandler.post(() -> {
-                Paint paint = new Paint();
-                paint.setTextSize(40);
-                paint.setColor(Color.WHITE);
-
-                mSurfaceControl = new SurfaceControl.Builder().setName("Child SurfaceControl")
-                        .setParent(parentSc).setBufferSize(1080, 1000).build();
-                new SurfaceControl.Transaction().show(mSurfaceControl).apply();
-
-                Surface surface = new Surface(mSurfaceControl);
-                Canvas c = surface.lockCanvas(null);
-                c.drawColor(Color.BLUE);
-                c.drawText("Remote", 400, 500, paint);
-                surface.unlockCanvasAndPost(c);
-                WindowManager wm = getSystemService(WindowManager.class);
-                wm.registerBatchedSurfaceControlInputReceiver(inputTransferToken,
-                        mSurfaceControl,
-                        Choreographer.getInstance(), event -> {
-                            Log.d(TAG, "onInputEvent-remote " + event);
-                            return false;
-                        });
-
+                mSurfaceControl = new SurfaceControl();
+                if (displayId != DEFAULT_DISPLAY) {
+                    boolean success;
+                    try {
+                        success = WindowManagerGlobal.getWindowManagerService()
+                                .mirrorDisplay(displayId, mSurfaceControl);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, "Failed to mirror display");
+                        success = false;
+                    }
+                    Log.i(TAG, "mirrorDisplay " + success + " valid " + mSurfaceControl.isValid());
+                    if (success && mSurfaceControl.isValid()) {
+                        new SurfaceControl.Transaction().show(mSurfaceControl)
+                                .reparent(mSurfaceControl, parentSc)
+                                .apply();
+                    }
+                }
             });
         }
 
         @Override
         public void tearDownEmbeddedSurfaceControl() {
             if (mSurfaceControl != null) {
-                WindowManager wm = getSystemService(WindowManager.class);
-                wm.unregisterSurfaceControlInputReceiver(mSurfaceControl);
                 new SurfaceControl.Transaction().remove(mSurfaceControl).apply();
                 mSurfaceControl = null;
             }

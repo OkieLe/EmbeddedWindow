@@ -24,9 +24,9 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
     private var mRemoteRegularView: SurfaceView? = null
-    private var mRemoteSurfaceView: SurfaceView? = null
+    private var mRemoteMirrorView: SurfaceView? = null
     private var mRemoteRegularControl: SurfaceControl? = null
-    private var mRemoteSurfaceControl: SurfaceControl? = null
+    private var mRemoteMirrorControl: SurfaceControl? = null
     private var mIAttachEmbeddedWindow: IAttachEmbeddedWindow? = null
     private val mLock = Any()
     private var mIsAttached = false
@@ -39,7 +39,7 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
             synchronized(mLock) {
                 mIAttachEmbeddedWindow = IAttachEmbeddedWindow.Stub.asInterface(service)
             }
-            loadEmbeddedSurface()
+            loadEmbeddedMirror()
             loadEmbeddedRegular()
         }
 
@@ -55,13 +55,13 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
         findViewById<ViewGroup>(android.R.id.content).fitsSystemWindows = true
 
         mRemoteRegularView = findViewById(R.id.remote_view)
-        mRemoteSurfaceView = findViewById(R.id.remote_surface)
+        mRemoteMirrorView = findViewById(R.id.remote_surface)
 
         mRemoteRegularView?.setZOrderOnTop(true)
         mRemoteRegularView?.holder?.addCallback(mRemoteRegularViewHolder)
 
-        mRemoteSurfaceView?.setZOrderOnTop(true)
-        mRemoteSurfaceView?.holder?.addCallback(mRemoteSurfaceViewHolder)
+        mRemoteMirrorView?.setZOrderOnTop(true)
+        mRemoteMirrorView?.holder?.addCallback(mRemoteMirrorViewHolder)
 
         val intent = Intent(this, EmbeddedWindowService::class.java)
         intent.setAction(IAttachEmbeddedWindow::class.java.getName())
@@ -144,10 +144,10 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
         }
     }
 
-    private val mRemoteSurfaceViewHolder: SurfaceHolder.Callback = object : SurfaceHolder.Callback {
+    private val mRemoteMirrorViewHolder: SurfaceHolder.Callback = object : SurfaceHolder.Callback {
         override fun surfaceCreated(holder: SurfaceHolder) {
-            mRemoteSurfaceControl = mRemoteSurfaceView!!.surfaceControl
-            loadEmbeddedSurface()
+            mRemoteMirrorControl = mRemoteMirrorView!!.surfaceControl
+            loadEmbeddedMirror()
         }
 
         override fun surfaceChanged(
@@ -162,19 +162,18 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
             } catch (e: RemoteException) {
                 Log.e(TAG, "Failed to tear down embedded SurfaceControl", e)
             }
-            mRemoteSurfaceControl = null
+            mRemoteMirrorControl = null
         }
     }
 
-    private fun loadEmbeddedSurface() {
-        if (mRemoteSurfaceControl == null) {
+    private fun loadEmbeddedMirror() {
+        if (mRemoteMirrorControl == null) {
             return
         }
         try {
             mIAttachEmbeddedWindow?.attachEmbeddedSurfaceControl(
-                mRemoteSurfaceControl,
-                display.displayId,
-                mRemoteSurfaceView!!.getRootSurfaceControl()!!.inputTransferToken
+                mRemoteMirrorControl, 2,
+                mRemoteMirrorView!!.getRootSurfaceControl()!!.inputTransferToken
             )
         } catch (e: RemoteException) {
             Log.e(TAG, "Failed to load embedded SurfaceControl", e)
