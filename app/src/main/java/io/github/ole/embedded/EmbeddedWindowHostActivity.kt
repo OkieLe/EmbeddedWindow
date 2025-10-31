@@ -24,6 +24,7 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
     private var mLocalMirrorControl: SurfaceControl? = null
     private var mRemoteDisplayHolder: SurfaceHolder? = null
     private var mRemoteDisplayControl: SurfaceControl? = null
+    private var mRemoteDisplayAttached: Boolean = false
     private var mBuiltInService: IBuiltIn? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,6 +34,14 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
 
         mLocalMirrorView = findViewById(R.id.remote_view)
         mRemoteDisplayView = findViewById(R.id.remote_surface)
+        mRemoteDisplayView?.setOnClickListener {
+            Log.i(TAG, "User click $mRemoteDisplayAttached")
+            if (mRemoteDisplayAttached) {
+                unloadRemoteDisplay()
+            } else {
+                loadRemoteDisplay()
+            }
+        }
 
         mLocalMirrorView?.setZOrderOnTop(true)
         mLocalMirrorView?.holder?.addCallback(mLocalMirrorViewHolder)
@@ -103,9 +112,23 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
         }
 
         override fun surfaceDestroyed(holder: SurfaceHolder) {
-            unloadRemoteDisplay()
+            clearRemoteDisplay()
             mRemoteDisplayHolder = null
             mRemoteDisplayControl = null
+        }
+    }
+
+    private fun clearRemoteDisplay() {
+        try {
+            val result = mBuiltInService?.performAction(
+                BuiltInContracts.VirtualDisplay.ID,
+                BuiltInContracts.VirtualDisplay.ACTION_RESET,
+                Bundle.EMPTY
+            )
+            mRemoteDisplayAttached = false
+            Log.w(TAG, "Result of reset display surface $result")
+        } catch (e: RemoteException) {
+            Log.e(TAG, "Failed to detach embedded SurfaceControl", e)
         }
     }
 
@@ -116,6 +139,7 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
                 BuiltInContracts.VirtualDisplay.ACTION_REPARENT,
                 Bundle.EMPTY
             )
+            mRemoteDisplayAttached = result != true
             Log.w(TAG, "Result of reset display surface $result")
         } catch (e: RemoteException) {
             Log.e(TAG, "Failed to detach embedded SurfaceControl", e)
@@ -135,6 +159,7 @@ class EmbeddedWindowHostActivity : AppCompatActivity() {
                 BuiltInContracts.VirtualDisplay.ACTION_REPARENT,
                 options
             )
+            mRemoteDisplayAttached = result == true
             Log.w(TAG, "Result of reparent display surface $result")
         } catch (e: RemoteException) {
             Log.e(TAG, "Failed to attach embedded SurfaceControl", e)
